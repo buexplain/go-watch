@@ -1,4 +1,4 @@
-# 监控你的程序文件变化并自动重启服务器
+# 监控你的程序文件变化并自动重启服务
 
 ## docker 编译
 ```bash
@@ -12,6 +12,10 @@ go build -o go-watch main.go
 
 ## 使用说明
 ```bash
+chmod u+x go-watch
+./go-watch run -h
+```
+```text
 Usage:
    run [flags]
 

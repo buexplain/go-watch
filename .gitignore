@@ -1,0 +1,5 @@
+.*
+!.gitignore
+go.sum
+main.exe
+main

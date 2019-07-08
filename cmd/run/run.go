@@ -31,7 +31,10 @@ func init() {
 			logger.InfoF("参数信息: \n%s\n", info.String())
 
 			//初始化执行器
-			e := executor.NewExecutor(executor.Info{Cmd: info.Cmd, Signal: info.Signal, Timeout: info.Timeout, AutoRestart: info.AutoRestart}).Init()
+			eInfo := executor.Info{Cmd: info.Cmd, Signal: info.Signal, Timeout: info.Timeout, AutoRestart: info.AutoRestart}
+			eInfo.Args = make([]string, len(info.Args))
+			copy(eInfo.Args, info.Args)
+			e := executor.NewExecutor(eInfo).Init()
 			//启动子程序
 			e.Start()
 
@@ -62,6 +65,7 @@ func init() {
 
 	//绑定参数
 	Run.Flags().StringVar(&info.Cmd, "cmd", "", "启动命令")
+	Run.Flags().StringSliceVar(&info.Args, "args", nil, "启动命令所需参数")
 	Run.Flags().StringSliceVar(&info.Folder, "folder", nil, "监听的文件夹")
 	Run.Flags().StringSliceVar(&info.Ext, "ext", nil, "监听的文件的扩展")
 	Run.Flags().UintVar(&info.Delay, "delay", info.Delay, "命令延迟执行秒数")

@@ -7,7 +7,7 @@ docker start myGolang
 docker exec -it myGolang bash
 git clone https://github.com/buexplain/go-watch.git
 cd go-watch
-CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o gowatch main.go
+CGO_ENABLED=0 go build -o gowatch main.go
 ```
 
 ## 使用说明
@@ -29,6 +29,8 @@ Flags:
       --signal int       子进程关闭信号 (default 9)
       --timeout int      等待子进程关闭超时秒数 (default 10)
 ```
+参数输入格式，请参阅[cobra](https://github.com/spf13/cobra)库。
+
 
 ## License
 [Apache-2.0](http://www.apache.org/licenses/LICENSE-2.0.html)

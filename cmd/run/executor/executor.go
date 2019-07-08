@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -175,7 +176,7 @@ func (this *Executor) start() {
 	}
 	go func() {
 		//新建一条命令
-		this.cmd = exec.Command(this.Info.Cmd)
+		this.cmd = exec.Command(this.Info.Cmd, this.Info.Args...)
 
 		//管道关联命令标准输出失败
 		stdOut, err := this.cmd.StdoutPipe()
@@ -200,7 +201,7 @@ func (this *Executor) start() {
 			return
 		}
 
-		logger.InfoF("子进程 %d 启动: %s\n", this.cmd.Process.Pid, this.Info.Cmd)
+		logger.InfoF("子进程 %d 启动: %s\n", this.cmd.Process.Pid, this.Info.Cmd+" "+strings.Join(this.Info.Args, " "))
 
 		//标准输出与标准错误输出管道go程结束控制器
 		var pipeWaitGroup *sync.WaitGroup = &sync.WaitGroup{}

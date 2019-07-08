@@ -7,6 +7,7 @@ import (
 
 type Info struct {
 	Cmd         string
+	Args        []string
 	Signal      int
 	Timeout     int
 	AutoRestart bool
@@ -14,6 +15,7 @@ type Info struct {
 
 func NewInfo() Info {
 	info := Info{}
+	info.Args = make([]string, 0)
 	info.Signal = int(syscall.SIGTERM)
 	if runtime.GOOS == "windows" {
 		info.Signal = int(syscall.SIGKILL)

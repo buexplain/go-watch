@@ -12,6 +12,7 @@ import (
 
 type Info struct {
 	Cmd         string
+	Args        []string
 	Folder      []string
 	Ext         []string
 	Delay       uint
@@ -22,6 +23,7 @@ type Info struct {
 
 func NewInfo() *Info {
 	info := new(Info)
+	info.Args = make([]string, 0)
 	info.Folder = make([]string, 0)
 	info.Ext = make([]string, 0)
 	info.Delay = 3
@@ -36,20 +38,24 @@ func NewInfo() *Info {
 }
 
 func (this *Info) String() string {
-	f := "Cmd:     %s\n"
-	f += "Folder:  %+v\n"
-	f += "Ext:     %+v\n"
-	f += "Delay:   %d\n"
-	f += "Signal:  %s（%d）\n"
-	f += "Timeout: %d\n"
+	f := "Cmd:         %s\n"
+	f += "Args:        %+v\n"
+	f += "Folder:      %+v\n"
+	f += "Ext:         %+v\n"
+	f += "Delay:       %d\n"
+	f += "Signal:      %s（%d）\n"
+	f += "Timeout:     %d\n"
+	f += "AutoRestart: %v"
 
 	return fmt.Sprintf(f,
-		info.Cmd,
-		info.Folder,
-		info.Ext,
-		info.Delay,
-		syscall.Signal(info.Signal).String(), info.Signal,
-		info.Timeout)
+		this.Cmd,
+		this.Args,
+		this.Folder,
+		this.Ext,
+		this.Delay,
+		syscall.Signal(this.Signal).String(), this.Signal,
+		this.Timeout,
+		this.AutoRestart)
 }
 
 func (this *Info) IsTargetExt(s string) bool {
@@ -72,6 +78,14 @@ func (this *Info) Filter() bool {
 		logger.Error("参数缺失：--cmd")
 		return false
 	}
+	tmpArgs := make([]string, 0, len(this.Args))
+	for _, v := range this.Args {
+		v = strings.Trim(v, " ")
+		if len(v) > 0 {
+			tmpArgs = append(tmpArgs, v)
+		}
+	}
+	this.Args = tmpArgs
 
 	//过滤扩展
 	for k, v := range this.Ext {

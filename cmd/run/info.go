@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/buexplain/go-watch/logger"
 	"os"
-	"path/filepath"
 	"runtime"
 	"strings"
 	"syscall"
@@ -14,7 +13,7 @@ type Info struct {
 	Cmd         string
 	Args        []string
 	Folder      []string
-	Ext         []string
+	Files       []string
 	Delay       uint
 	Signal      int
 	Timeout     int
@@ -25,10 +24,10 @@ func NewInfo() *Info {
 	info := new(Info)
 	info.Args = make([]string, 0)
 	info.Folder = make([]string, 0)
-	info.Ext = make([]string, 0)
-	info.Delay = 3
+	info.Files = make([]string, 0)
+	info.Delay = 2
 	info.Signal = int(syscall.SIGTERM)
-	info.Timeout = 10
+	info.Timeout = 5
 
 	if runtime.GOOS == "windows" {
 		info.Signal = int(syscall.SIGKILL)
@@ -41,7 +40,7 @@ func (this *Info) String() string {
 	f := "Cmd:         %s\n"
 	f += "Args:        %+v\n"
 	f += "Folder:      %+v\n"
-	f += "Ext:         %+v\n"
+	f += "Files:       %+v\n"
 	f += "Delay:       %d\n"
 	f += "Signal:      %s（%d）\n"
 	f += "Timeout:     %d\n"
@@ -51,24 +50,11 @@ func (this *Info) String() string {
 		this.Cmd,
 		this.Args,
 		this.Folder,
-		this.Ext,
+		this.Files,
 		this.Delay,
 		syscall.Signal(this.Signal).String(), this.Signal,
 		this.Timeout,
 		this.AutoRestart)
-}
-
-func (this *Info) IsTargetExt(s string) bool {
-	if len(this.Ext) == 0 {
-		return true
-	}
-	e := filepath.Ext(s)
-	for _, v := range this.Ext {
-		if strings.EqualFold(e, v) {
-			return true
-		}
-	}
-	return false
 }
 
 func (this *Info) Filter() bool {
@@ -87,11 +73,6 @@ func (this *Info) Filter() bool {
 	}
 	this.Args = tmpArgs
 
-	//过滤扩展
-	for k, v := range this.Ext {
-		this.Ext[k] = "." + strings.TrimLeft(strings.Trim(v, ". "), ".")
-	}
-
 	//过滤文件夹
 	tmpFolder := make([]string, 0, len(this.Folder))
 	for _, v := range this.Folder {
@@ -101,8 +82,19 @@ func (this *Info) Filter() bool {
 		}
 	}
 	this.Folder = tmpFolder
-	if len(this.Folder) == 0 {
-		logger.Error("参数缺失：--folder")
+
+	//过滤文件
+	tmpFiles := make([]string, 0, len(this.Folder))
+	for _, v := range this.Files {
+		v = strings.Trim(strings.Replace(v, "\\", "/", -1), " ")
+		if fi, err := os.Stat(v); err == nil && !fi.IsDir() {
+			tmpFiles = append(tmpFiles, v)
+		}
+	}
+	this.Files = tmpFiles
+
+	if len(this.Folder) == 0 && len(this.Files) == 0 {
+		logger.Error("参数缺失：--folder or --files")
 		return false
 	}
 

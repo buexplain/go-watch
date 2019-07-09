@@ -3,11 +3,13 @@ package run
 import (
 	"github.com/buexplain/go-watch/cmd"
 	"github.com/buexplain/go-watch/cmd/run/executor"
+	"github.com/buexplain/go-watch/cmd/run/monitor"
 	"github.com/buexplain/go-watch/logger"
 	"github.com/spf13/cobra"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 )
 
 var Run *cobra.Command
@@ -38,10 +40,10 @@ func init() {
 			//启动子程序
 			e.Start()
 
-			//监听信号
+			//监视信号
 			go func() {
 				var signalCH chan os.Signal = make(chan os.Signal, 1)
-				//监听kill默认信号
+				//监视kill默认信号
 				signal.Notify(signalCH, syscall.SIGTERM)
 				//收到信号
 				<-signalCH
@@ -51,23 +53,47 @@ func init() {
 				os.Exit(0)
 			}()
 
-			//初始化文件监听器
-			m := NewMonitor(e)
-
-			//启动监听器
-			if m.Run() {
-				os.Exit(0)
-			} else {
+			//初始化文件监视器
+			mInfo := monitor.Info{}
+			mInfo.Folder = make([]string, len(info.Folder))
+			copy(mInfo.Folder, info.Folder)
+			mInfo.Files = make([]string, len(info.Files))
+			copy(mInfo.Files, info.Files)
+			m := monitor.NewMonitor(mInfo)
+			if err := m.Init(); err != nil {
+				logger.ErrorF("初始化监视器失败: %s\n", err)
 				os.Exit(1)
+			}
+
+			//启动监视器
+			eventCH, errorCH, closedCH := m.Run()
+			isSend := false
+			for {
+				select {
+				case _ = <-eventCH:
+					isSend = true
+				case err := <-errorCH:
+					logger.ErrorF("监视器异常: %s\n", err)
+				case <-closedCH:
+					logger.Info("监视器已经关闭")
+					os.Exit(0)
+				case <-time.After(time.Duration(info.Delay) * time.Second):
+					if isSend {
+						isSend = false
+						logger.Info("监视到文件变化，重启子进程")
+						e.Stop()
+						e.Start()
+					}
+				}
 			}
 		},
 	}
 
 	//绑定参数
-	Run.Flags().StringVar(&info.Cmd, "cmd", "", "启动命令")
-	Run.Flags().StringSliceVar(&info.Args, "args", nil, "启动命令所需参数")
-	Run.Flags().StringSliceVar(&info.Folder, "folder", nil, "监听的文件夹")
-	Run.Flags().StringSliceVar(&info.Ext, "ext", nil, "监听的文件的扩展")
+	Run.Flags().StringVar(&info.Cmd, "cmd", info.Cmd, "启动命令")
+	Run.Flags().StringSliceVar(&info.Args, "args", info.Args, "启动命令所需参数")
+	Run.Flags().StringSliceVar(&info.Folder, "folder", info.Folder, "监视的文件夹")
+	Run.Flags().StringSliceVar(&info.Files, "files", info.Files, "监视的文件")
 	Run.Flags().UintVar(&info.Delay, "delay", info.Delay, "命令延迟执行秒数")
 	Run.Flags().IntVar(&info.Signal, "signal", info.Signal, "子进程关闭信号")
 	Run.Flags().IntVar(&info.Timeout, "timeout", info.Timeout, "等待子进程关闭超时秒数")

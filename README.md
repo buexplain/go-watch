@@ -20,14 +20,15 @@ Usage:
    run [flags]
 
 Flags:
+      --args strings     启动命令所需参数
       --autoRestart      是否自动重启子进程，子进程非守护类型不建议自动重启
       --cmd string       启动命令
-      --delay uint       命令延迟执行秒数 (default 3)
-      --ext strings      监听的文件的扩展
-      --folder strings   监听的文件夹
+      --delay uint       命令延迟执行秒数 (default 2)
+      --files strings    监视的文件
+      --folder strings   监视的文件夹
   -h, --help             help for run
-      --signal int       子进程关闭信号 (default 9)
-      --timeout int      等待子进程关闭超时秒数 (default 10)
+      --signal int       子进程关闭信号 (default 15)
+      --timeout int      等待子进程关闭超时秒数 (default 5)
 ```
 参数输入格式，请参阅[cobra](https://github.com/spf13/cobra)库。
 

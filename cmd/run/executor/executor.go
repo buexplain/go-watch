@@ -249,7 +249,7 @@ func (this *Executor) start() {
 			close(pipeQuitCHExit)
 		}()
 
-		//监听标准输出与标准错误输出管道go程结束时发出的信号
+		//监视标准输出与标准错误输出管道go程结束时发出的信号
 		go func() {
 			defer func() {
 				close(pipeQuitCH)

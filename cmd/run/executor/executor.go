@@ -92,6 +92,11 @@ func (this *Executor) Init() *Executor {
 
 func (this *Executor) chunk(timeout int) []int {
 	result := make([]int, 0)
+	if timeout < 2 {
+		timeout = 1
+	}
+	result = append(result, 1)
+	timeout -= 1
 	c := 2
 	exist := 0
 	current := 1
@@ -139,7 +144,12 @@ func (this *Executor) stop() {
 		if err := this.cmd.Process.Signal(syscall.Signal(this.Info.Signal)); err == nil {
 			logger.InfoF("子进程 %d 信号: %s\n", this.cmd.Process.Pid, syscall.Signal(this.Info.Signal).String())
 			stopTimeout := this.chunk(this.Info.Timeout)
-			for _, v := range stopTimeout {
+			for k, v := range stopTimeout {
+				//先进行一次200毫秒的等待
+				if k == 0 {
+					<-time.After(200 * time.Millisecond)
+				}
+				//检查是否停止
 				if this.isExited() {
 					this.cmd = nil
 					break
@@ -151,7 +161,7 @@ func (this *Executor) stop() {
 			if this.isExited() == false {
 				logger.InfoF("子进程 %d 信号: %s\n", this.cmd.Process.Pid, syscall.SIGKILL.String())
 				if err := this.cmd.Process.Signal(syscall.Signal(syscall.SIGKILL)); err == nil {
-					<-time.After(3 * time.Second)
+					<-time.After(5 * time.Second)
 					if this.isExited() {
 						this.cmd = nil
 					} else {

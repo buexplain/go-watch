@@ -1,8 +1,9 @@
-package monitor
+package poll
 
 import (
 	"bytes"
 	"errors"
+	"github.com/buexplain/go-watch/cmd/run/monitor"
 	"github.com/buexplain/go-watch/logger"
 	"github.com/radovskyb/watcher"
 	"os"
@@ -10,11 +11,11 @@ import (
 )
 
 type Monitor struct {
-	Info    Info
+	Info    monitor.Info
 	watcher *watcher.Watcher
 }
 
-func NewMonitor(info Info) *Monitor {
+func NewMonitor(info monitor.Info) *Monitor {
 	return &Monitor{Info: info}
 }
 

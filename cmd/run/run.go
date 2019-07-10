@@ -4,6 +4,7 @@ import (
 	"github.com/buexplain/go-watch/cmd"
 	"github.com/buexplain/go-watch/cmd/run/executor"
 	"github.com/buexplain/go-watch/cmd/run/monitor"
+	"github.com/buexplain/go-watch/cmd/run/monitor/poll"
 	"github.com/buexplain/go-watch/logger"
 	"github.com/spf13/cobra"
 	"os"
@@ -59,7 +60,7 @@ func init() {
 			copy(mInfo.Folder, info.Folder)
 			mInfo.Files = make([]string, len(info.Files))
 			copy(mInfo.Files, info.Files)
-			m := monitor.NewMonitor(mInfo)
+			m := poll.NewMonitor(mInfo)
 			if err := m.Init(); err != nil {
 				logger.ErrorF("初始化监视器失败: %s\n", err)
 				os.Exit(1)

@@ -25,7 +25,7 @@ func NewInfo() *Info {
 	info.Args = make([]string, 0)
 	info.Folder = make([]string, 0)
 	info.Files = make([]string, 0)
-	info.Delay = 2
+	info.Delay = 1
 	info.Signal = int(syscall.SIGTERM)
 	info.Timeout = 5
 

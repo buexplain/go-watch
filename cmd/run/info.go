@@ -18,6 +18,7 @@ type Info struct {
 	Signal      int
 	Timeout     int
 	AutoRestart bool
+	Pattern     string
 }
 
 func NewInfo() *Info {
@@ -28,6 +29,7 @@ func NewInfo() *Info {
 	info.Delay = 1
 	info.Signal = int(syscall.SIGTERM)
 	info.Timeout = 5
+	info.Pattern = "poll"
 
 	if runtime.GOOS == "windows" {
 		info.Signal = int(syscall.SIGKILL)
@@ -44,7 +46,8 @@ func (this *Info) String() string {
 	f += "Delay:       %d\n"
 	f += "Signal:      %s（%d）\n"
 	f += "Timeout:     %d\n"
-	f += "AutoRestart: %v"
+	f += "AutoRestart: %v\n"
+	f += "Pattern:     %s"
 
 	return fmt.Sprintf(f,
 		this.Cmd,
@@ -54,7 +57,8 @@ func (this *Info) String() string {
 		this.Delay,
 		syscall.Signal(this.Signal).String(), this.Signal,
 		this.Timeout,
-		this.AutoRestart)
+		this.AutoRestart,
+		this.Pattern)
 }
 
 func (this *Info) Filter() bool {
@@ -95,6 +99,11 @@ func (this *Info) Filter() bool {
 
 	if len(this.Folder) == 0 && len(this.Files) == 0 {
 		logger.Error("参数缺失：--folder or --files")
+		return false
+	}
+
+	if !strings.EqualFold(this.Pattern, "poll") && !strings.EqualFold(this.Pattern, "notify") {
+		logger.Error("监视模式必须是 poll 或 notify")
 		return false
 	}
 

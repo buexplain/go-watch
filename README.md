@@ -23,15 +23,17 @@ Flags:
       --args strings     启动命令所需参数
       --autoRestart      是否自动重启子进程，子进程非守护类型不建议自动重启
       --cmd string       启动命令
-      --delay uint       命令延迟执行秒数 (default 2)
+      --delay uint       命令延迟执行秒数 (default 1)
       --files strings    监视的文件
       --folder strings   监视的文件夹
   -h, --help             help for run
+      --pattern string   监视文件变化的方式 poll 或 notify (default "poll")
       --signal int       子进程关闭信号 (default 15)
       --timeout int      等待子进程关闭超时秒数 (default 5)
 ```
-参数输入格式，请参阅[cobra](https://github.com/spf13/cobra)库。
 
+1. 参数输入格式，请参阅[cobra](https://github.com/spf13/cobra)库。
+2. 如果操作系统不支持监视相关事件，或者是虚拟机与宿主机共享文件夹的情况下，那么只能使用 --pattern=poll 方式监视文件
 
 ## License
 [Apache-2.0](http://www.apache.org/licenses/LICENSE-2.0.html)

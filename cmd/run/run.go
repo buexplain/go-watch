@@ -34,7 +34,14 @@ func init() {
 			logger.InfoF("参数信息: \n%s\n\n", info.String())
 
 			//初始化执行器
-			eInfo := executor.Info{Cmd: info.Cmd, Signal: info.Signal, Timeout: info.Timeout, AutoRestart: info.AutoRestart}
+			eInfo := executor.Info{
+				Cmd:           info.Cmd,
+				Signal:        info.Signal,
+				Timeout:       info.Timeout,
+				AutoRestart:   info.AutoRestart,
+				PreCmd:        info.PreCmd,
+				PreCmdTimeout: info.PreCmdTimeout,
+			}
 			eInfo.Args = make([]string, len(info.Args))
 			copy(eInfo.Args, info.Args)
 			e := executor.NewExecutor(eInfo).Init()
@@ -106,6 +113,8 @@ func init() {
 	Run.Flags().IntVar(&info.Signal, "signal", info.Signal, "子进程关闭信号")
 	Run.Flags().IntVar(&info.Timeout, "timeout", info.Timeout, "等待子进程关闭超时秒数")
 	Run.Flags().BoolVar(&info.AutoRestart, "autoRestart", info.AutoRestart, "是否自动重启子进程，子进程非守护类型不建议自动重启")
+	Run.Flags().StringVar(&info.PreCmd, "preCmd", info.PreCmd, "预处理命令，启动命令执行前执行的命令")
+	Run.Flags().IntVar(&info.PreCmdTimeout, "preCmdTimeout", info.PreCmdTimeout, "预处理命令执行超时秒数")
 	Run.Flags().StringVar(&info.Pattern, "pattern", info.Pattern, "监视文件变化的方式 poll 或 notify")
 	Run.Flags()
 

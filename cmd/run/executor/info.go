@@ -6,11 +6,13 @@ import (
 )
 
 type Info struct {
-	Cmd         string
-	Args        []string
-	Signal      int
-	Timeout     int
-	AutoRestart bool
+	Cmd           string
+	Args          []string
+	Signal        int
+	Timeout       int
+	AutoRestart   bool
+	PreCmd        string
+	PreCmdTimeout int
 }
 
 func NewInfo() Info {

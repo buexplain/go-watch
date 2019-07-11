@@ -10,15 +10,17 @@ import (
 )
 
 type Info struct {
-	Cmd         string
-	Args        []string
-	Folder      []string
-	Files       []string
-	Delay       uint
-	Signal      int
-	Timeout     int
-	AutoRestart bool
-	Pattern     string
+	Cmd           string
+	Args          []string
+	Folder        []string
+	Files         []string
+	Delay         uint
+	Signal        int
+	Timeout       int
+	AutoRestart   bool
+	PreCmd        string
+	PreCmdTimeout int
+	Pattern       string
 }
 
 func NewInfo() *Info {
@@ -30,6 +32,7 @@ func NewInfo() *Info {
 	info.Signal = int(syscall.SIGTERM)
 	info.Timeout = 5
 	info.Pattern = "poll"
+	info.PreCmdTimeout = 10
 
 	if runtime.GOOS == "windows" {
 		info.Signal = int(syscall.SIGKILL)
@@ -39,15 +42,17 @@ func NewInfo() *Info {
 }
 
 func (this *Info) String() string {
-	f := "Cmd:         %s\n"
-	f += "Args:        %+v\n"
-	f += "Folder:      %+v\n"
-	f += "Files:       %+v\n"
-	f += "Delay:       %d\n"
-	f += "Signal:      %s（%d）\n"
-	f += "Timeout:     %d\n"
-	f += "AutoRestart: %v\n"
-	f += "Pattern:     %s"
+	f := "Cmd:           %s\n"
+	f += "Args:          %+v\n"
+	f += "Folder:        %+v\n"
+	f += "Files:         %+v\n"
+	f += "Delay:         %d\n"
+	f += "Signal:        %s（%d）\n"
+	f += "Timeout:       %d\n"
+	f += "AutoRestart:   %v\n"
+	f += "PreCmd:        %s\n"
+	f += "PreCmdTimeout: %d\n"
+	f += "Pattern:       %s"
 
 	return fmt.Sprintf(f,
 		this.Cmd,
@@ -58,6 +63,8 @@ func (this *Info) String() string {
 		syscall.Signal(this.Signal).String(), this.Signal,
 		this.Timeout,
 		this.AutoRestart,
+		this.PreCmd,
+		this.PreCmdTimeout,
 		this.Pattern)
 }
 
@@ -105,6 +112,12 @@ func (this *Info) Filter() bool {
 	if !strings.EqualFold(this.Pattern, "poll") && !strings.EqualFold(this.Pattern, "notify") {
 		logger.Error("监视模式必须是 poll 或 notify")
 		return false
+	}
+
+	//过滤预处理命令相关参数
+	this.PreCmd = strings.Trim(this.PreCmd, " ")
+	if this.PreCmdTimeout <= 0 {
+		this.PreCmdTimeout = 1
 	}
 
 	return true

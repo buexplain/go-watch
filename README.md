@@ -41,7 +41,7 @@ Flags:
 ## 使用示例
 以PHP类项目[hyperf](https://github.com/hyperf-cloud/hyperf)为例子，使用方式如下：
 ```bash
-./gowatch run --preCmd "php bin/hyperf.php di:init-proxy" --cmd "php" --args "/hyperf-skeleton/bin/hyperf.php, start" --files "/hyperf-skeleton/.env" --folder "/hyperf-skeleton/app/, /hyperf-skeleton/config/" --autoRestart true
+./gowatch run --preCmd "php bin/hyperf.php di:init-proxy" --cmd "php" --args "/hyperf-skeleton/bin/hyperf.php, start" --files "/hyperf-skeleton/.env" --folder "/hyperf-skeleton/app/, /hyperf-skeleton/config/" --autoRestart=true
 ```
 
 ## License

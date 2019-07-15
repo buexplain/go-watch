@@ -137,6 +137,7 @@ func (this *Executor) isExited() bool {
 
 func (this *Executor) stop() {
 	if this.cmd != nil && this.cmd.Process != nil {
+		//先检查子进程是否存在
 		if this.isExited() {
 			this.cmd = nil
 			return
@@ -186,6 +187,9 @@ func (this *Executor) start() {
 		return
 	}
 	go func() {
+		//新建一条子进程命令
+		this.cmd = exec.Command(this.Info.Cmd, this.Info.Args...)
+
 		if this.Info.PreCmd != "" {
 			logger.Info("-------- 子进程预处理命令 开始 --------")
 			//新建预处理命令
@@ -194,6 +198,7 @@ func (this *Executor) start() {
 			//执行预处理命令
 			if err := preCmd.Start(); err != nil {
 				logger.ErrorF("子进程预处理命令启动失败: %s\n", err)
+				this.cmd = nil
 				return
 			}
 
@@ -206,14 +211,12 @@ func (this *Executor) start() {
 			//子进程预处理命令执行是否成功
 			if preCmd.HasErr() {
 				logger.ErrorF("子进程预处理命令执行失败: %s\n", preCmd.StdErr())
+				this.cmd = nil
 				return
 			}
 			_, _ = io.WriteString(os.Stdout, "\n")
 			logger.Info("-------- 子进程预处理命令 结束 --------")
 		}
-
-		//新建一条子进程命令
-		this.cmd = exec.Command(this.Info.Cmd, this.Info.Args...)
 
 		//管道关联命令标准输出失败
 		stdOut, err := this.cmd.StdoutPipe()
@@ -322,6 +325,8 @@ func (this *Executor) start() {
 		//判断是否自动重启
 		if this.Info.AutoRestart {
 			logger.Info("发出重启子进程信号")
+			//延迟一定时间，否则无限无间隔的重启，导致无法CTRL+C
+			<-time.After(3 * time.Second)
 			//发出重启信号
 			this.jump <- SIGNAL_STOP
 			this.jump <- SIGNAL_START

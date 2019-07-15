@@ -28,7 +28,7 @@ type Executor struct {
 }
 
 func NewExecutor(info Info) *Executor {
-	return &Executor{Info: info, signal: make(chan string, 100), kill: make(chan struct{})}
+	return &Executor{Info: info, signal: make(chan string), kill: make(chan struct{})}
 }
 
 func (this *Executor) Start() {
@@ -328,7 +328,7 @@ func (this *Executor) start() {
 			//发出重启信号
 			this.jump <- SIGNAL_STOP
 			this.jump <- SIGNAL_START
-			//发出取消阻塞信号
+			//发送取消阻塞信号
 			this.signal <- SIGNAL_CANCEL_OBSTRUCT
 		}
 	}()

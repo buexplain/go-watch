@@ -85,7 +85,10 @@ func init() {
 			for {
 				select {
 				case _ = <-eventCH:
-					isSend = true
+					logger.InfoF("进程 %d 监视到文件变化\n", os.Getpid())
+					if !isSend {
+						isSend = true
+					}
 				case err := <-errorCH:
 					logger.ErrorF("监视器异常: %s\n", err)
 				case <-closedCH:
@@ -94,10 +97,10 @@ func init() {
 					os.Exit(0)
 				case <-time.After(time.Duration(info.Delay) * time.Second):
 					if isSend {
-						isSend = false
-						logger.InfoF("进程 %d 监视到文件变化，重启子进程\n", os.Getpid())
+						logger.InfoF("进程 %d 重启子进程\n", os.Getpid())
 						e.Stop()
 						e.Start()
+						isSend = false
 					}
 				}
 			}

@@ -195,27 +195,19 @@ func (this *Executor) start() {
 			logger.Info("-------- 子进程预处理命令 开始 --------")
 			//新建预处理命令
 			preCmd := bash.NewBash(this.Info.PreCmd, time.Duration(this.Info.PreCmdTimeout)*time.Second)
-
 			//执行预处理命令
-			if err := preCmd.Start(); err != nil {
-				logger.ErrorF("子进程预处理命令启动失败: %s\n", err)
-				this.cmd = nil
-				return
-			}
-
+			var startErr = preCmd.Start()
 			//打印标准输出
 			_, _ = io.Copy(os.Stdout, strings.NewReader(preCmd.StdOut()))
-
 			//打印标准错误输出
 			_, _ = io.Copy(os.Stderr, strings.NewReader(preCmd.StdErr()))
-
-			//子进程预处理命令执行是否成功
-			if preCmd.HasErr() {
-				logger.ErrorF("子进程预处理命令执行失败: %s\n", preCmd.StdErr())
+			_, _ = io.WriteString(os.Stdout, "\n")
+			//命令执行失败
+			if startErr != nil {
+				logger.ErrorF("子进程预处理命令执行失败: %s\n", startErr)
 				this.cmd = nil
 				return
 			}
-			_, _ = io.WriteString(os.Stdout, "\n")
 			logger.Info("-------- 子进程预处理命令 结束 --------")
 		}
 

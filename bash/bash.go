@@ -3,18 +3,21 @@ package bash
 import (
 	"bytes"
 	"errors"
-	"fmt"
 	"os/exec"
 	"strings"
 	"syscall"
 	"time"
 )
 
+var ErrCmdRunTimeout = errors.New("cmd run timeout")
+var ErrCmdIsTerminated = errors.New("cmd is terminated")
+
 //linux bash 命令对象
 type Bash struct {
 	cmd         string
 	timeout     time.Duration
 	terminateCH chan bool
+	closed      chan struct{}
 	command     *exec.Cmd
 	stdout      bytes.Buffer
 	stderr      bytes.Buffer
@@ -28,6 +31,7 @@ func NewBash(cmd string, timeout time.Duration) *Bash {
 		b.timeout = 3600 * time.Second
 	}
 	b.terminateCH = make(chan bool)
+	b.closed = make(chan struct{})
 	b.command = exec.Command("/bin/bash", "-c", b.cmd)
 	b.command.Stderr = &b.stderr
 	b.command.Stdout = &b.stdout
@@ -41,9 +45,18 @@ func (this *Bash) Start() error {
 	}
 
 	errCH := make(chan error)
+
 	go func() {
-		defer close(errCH)
-		errCH <- this.command.Wait()
+		defer func() {
+			close(errCH)
+		}()
+		err := this.command.Wait()
+		select {
+		case <-this.closed:
+			return
+		default:
+			errCH <- err
+		}
 	}()
 
 	var err error
@@ -53,14 +66,16 @@ func (this *Bash) Start() error {
 	case <-time.After(this.timeout):
 		err = this.terminate()
 		if err == nil {
-			err = errors.New(fmt.Sprintf("cmd run timeout time[%v]", this.timeout))
+			err = ErrCmdRunTimeout
 		}
 	case <-this.terminateCH:
 		err = this.terminate()
 		if err == nil {
-			err = errors.New(fmt.Sprintf("cmd is terminated"))
+			err = ErrCmdIsTerminated
 		}
 	}
+
+	close(this.closed)
 
 	return err
 }
@@ -71,7 +86,12 @@ func (this *Bash) terminate() error {
 
 //停止命令的执行
 func (this *Bash) Stop() {
-	this.terminateCH <- true
+	select {
+	case <-this.closed:
+		return
+	default:
+		this.terminateCH <- true
+	}
 }
 
 //检查程序是否有错误

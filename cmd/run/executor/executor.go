@@ -40,7 +40,9 @@ func (this *Executor) Stop() {
 }
 
 func (this *Executor) Kill() <-chan struct{} {
-	this.signal <- SIGNAL_KILL
+	this.Info.AutoRestart = false
+	this.jump <- SIGNAL_KILL
+	this.signal <- SIGNAL_CANCEL_OBSTRUCT
 	return this.kill
 }
 
@@ -62,7 +64,6 @@ func (this *Executor) Init() *Executor {
 				this.stop()
 				return false
 			case SIGNAL_KILL:
-				this.Info.AutoRestart = false
 				this.stop()
 				close(this.kill)
 				return true
@@ -236,12 +237,12 @@ func (this *Executor) start() {
 
 		//启动命令
 		if err := this.cmd.Start(); err != nil {
-			logger.ErrorF("子进程启动失败: %s\n", err)
+			logger.ErrorF("进程 %d 启动子进程失败: %s\n", os.Getpid(), err)
 			this.cmd = nil
 			return
 		}
 
-		logger.InfoF("子进程 %d 启动: %s\n", this.cmd.Process.Pid, this.Info.Cmd+" "+strings.Join(this.Info.Args, " "))
+		logger.InfoF("进程 %d 启动子进程 %d: %s\n", os.Getpid(), this.cmd.Process.Pid, this.Info.Cmd+" "+strings.Join(this.Info.Args, " "))
 
 		//标准输出与标准错误输出管道go程结束控制器
 		var pipeWaitGroup *sync.WaitGroup = &sync.WaitGroup{}
@@ -293,7 +294,6 @@ func (this *Executor) start() {
 		go func() {
 			defer func() {
 				close(pipeQuitCH)
-				logger.Info("子进程管道相关go程全部退出")
 			}()
 			//停止子进程信号发送锁
 			isSendSignal := false
@@ -324,7 +324,7 @@ func (this *Executor) start() {
 		}
 		//判断是否自动重启
 		if this.Info.AutoRestart {
-			logger.Info("自动重启，发出重启子进程信号")
+			logger.InfoF("进程 %d 发出重启子进程信号\n", os.Getpid())
 			//发出重启信号
 			this.jump <- SIGNAL_STOP
 			this.jump <- SIGNAL_START

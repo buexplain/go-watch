@@ -52,8 +52,8 @@ func init() {
 				//监视kill默认信号 和 Ctrl+C 发出的信号
 				signal.Notify(signalCH, syscall.SIGTERM, syscall.SIGINT)
 				//收到信号
-				<-signalCH
-				logger.Info("进程收到停止信号，开始停止子进程")
+				s := <-signalCH
+				logger.InfoF("进程 %d 收到 %s 信号，开始停止子进程\n", os.Getpid(), s.String())
 				//结束子进程
 				<-e.Kill()
 				//结束父进程
@@ -95,7 +95,7 @@ func init() {
 				case <-time.After(time.Duration(info.Delay) * time.Second):
 					if isSend {
 						isSend = false
-						logger.Info("监视到文件变化，重启子进程")
+						logger.InfoF("进程 %d 监视到文件变化，重启子进程\n", os.Getpid())
 						e.Stop()
 						e.Start()
 					}

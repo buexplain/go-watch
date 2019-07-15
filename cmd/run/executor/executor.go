@@ -324,9 +324,7 @@ func (this *Executor) start() {
 		}
 		//判断是否自动重启
 		if this.Info.AutoRestart {
-			logger.Info("发出重启子进程信号")
-			//延迟一定时间，否则无限无间隔的重启，导致无法CTRL+C
-			<-time.After(3 * time.Second)
+			logger.Info("自动重启，发出重启子进程信号")
 			//发出重启信号
 			this.jump <- SIGNAL_STOP
 			this.jump <- SIGNAL_START

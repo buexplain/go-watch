@@ -58,7 +58,6 @@ func (this *Executor) Init() *Executor {
 			switch s {
 			case SIGNAL_START:
 				this.start()
-				<-time.After(3 * time.Second)
 				return false
 			case SIGNAL_STOP:
 				this.stop()
@@ -187,130 +186,138 @@ func (this *Executor) start() {
 	if this.cmd != nil {
 		return
 	}
+
+	//新建一条子进程命令
+	this.cmd = exec.Command(this.Info.Cmd, this.Info.Args...)
+
+	if this.Info.PreCmd != "" {
+		logger.Info("-------- 子进程预处理命令 开始 --------")
+		//新建预处理命令
+		preCmd := bash.NewBash(this.Info.PreCmd, time.Duration(this.Info.PreCmdTimeout)*time.Second)
+		//执行预处理命令
+		var startErr = preCmd.Start()
+		//打印标准输出
+		_, _ = io.Copy(os.Stdout, strings.NewReader(preCmd.StdOut()))
+		//打印标准错误输出
+		_, _ = io.Copy(os.Stderr, strings.NewReader(preCmd.StdErr()))
+		_, _ = io.WriteString(os.Stdout, "\n")
+		//命令执行失败
+		if startErr != nil {
+			logger.ErrorF("子进程预处理命令执行失败: %s\n", startErr)
+			if !this.Info.PreCmdIgnoreError {
+				os.Exit(0)
+			}
+		}
+		//释放子命令
+		preCmd = nil
+		logger.Info("-------- 子进程预处理命令 结束 --------")
+	}
+
+	//管道关联命令标准输出失败
+	stdOut, err := this.cmd.StdoutPipe()
+	if err != nil {
+		logger.ErrorF("子进程管道关联命令标准输出失败: %s\n", err)
+		this.cmd = nil
+		return
+	}
+
+	//管道关联命令标准错误输出失败
+	strErr, err := this.cmd.StderrPipe()
+	if err != nil {
+		logger.ErrorF("子进程管道关联命令标准错误输出失败: %s\n", err)
+		this.cmd = nil
+		return
+	}
+
+	//启动命令
+	if err := this.cmd.Start(); err != nil {
+		logger.ErrorF("进程 %d 启动子进程失败: %s\n", os.Getpid(), err)
+		this.cmd = nil
+		return
+	}
+
+	logger.InfoF("进程 %d 启动子进程 %d: %s\n", os.Getpid(), this.cmd.Process.Pid, this.Info.Cmd+" "+strings.Join(this.Info.Args, " "))
+
+	//标准输出与标准错误输出管道go程结束控制器
+	var pipeWaitGroup *sync.WaitGroup = &sync.WaitGroup{}
+	//标准输出与标准错误输出管道go程结束时发出的信号，用于判断是否正常退出
+	var pipeQuitCH chan bool = make(chan bool, 2)
+	//标准输出与标准错误输出管道都结束的信号
+	var pipeQuitCHExit chan struct{} = make(chan struct{})
+
+	//读取命令标准输出管道
+	pipeWaitGroup.Add(1)
 	go func() {
-		//新建一条子进程命令
-		this.cmd = exec.Command(this.Info.Cmd, this.Info.Args...)
+		isError := false
+		defer func() {
+			pipeQuitCH <- isError
+			pipeWaitGroup.Done()
+		}()
+		if _, err := io.Copy(os.Stdout, stdOut); err != nil {
+			if err != io.EOF {
+				logger.ErrorF("读取子进程命令标准输出管道失败: %s\n", err)
+				isError = true
+			}
+		}
+	}()
 
-		if this.Info.PreCmd != "" {
-			logger.Info("-------- 子进程预处理命令 开始 --------")
-			//新建预处理命令
-			preCmd := bash.NewBash(this.Info.PreCmd, time.Duration(this.Info.PreCmdTimeout)*time.Second)
-			//执行预处理命令
-			var startErr = preCmd.Start()
-			//打印标准输出
-			_, _ = io.Copy(os.Stdout, strings.NewReader(preCmd.StdOut()))
-			//打印标准错误输出
-			_, _ = io.Copy(os.Stderr, strings.NewReader(preCmd.StdErr()))
-			_, _ = io.WriteString(os.Stdout, "\n")
-			//命令执行失败
-			if startErr != nil {
-				logger.ErrorF("子进程预处理命令执行失败: %s\n", startErr)
-				this.cmd = nil
+	//读取命令标准错误输出管道
+	pipeWaitGroup.Add(1)
+	go func() {
+		isError := false
+		defer func() {
+			pipeQuitCH <- isError
+			pipeWaitGroup.Done()
+		}()
+		if _, err := io.Copy(os.Stderr, strErr); err != nil {
+			if err != io.EOF {
+				logger.ErrorF("读取子进程命令标准错误输出管道失败: %s\n", err)
+				isError = true
+			}
+		}
+	}()
+
+	//等待标准输出与标准错误输出管道go程结束
+	go func() {
+		pipeWaitGroup.Wait()
+		//发出等待标准输出与标准错误输出管道go程结束信号
+		close(pipeQuitCHExit)
+	}()
+
+	//监视标准输出与标准错误输出管道go程结束时发出的信号
+	go func() {
+		defer func() {
+			close(pipeQuitCH)
+		}()
+		//停止子进程信号发送锁
+		isSendSignal := false
+		for {
+			select {
+			case <-pipeQuitCHExit:
+				//标准输出与标准错误输出管道go程都结束了，结束当前go程
 				return
-			}
-			logger.Info("-------- 子进程预处理命令 结束 --------")
-		}
-
-		//管道关联命令标准输出失败
-		stdOut, err := this.cmd.StdoutPipe()
-		if err != nil {
-			logger.ErrorF("子进程管道关联命令标准输出失败: %s\n", err)
-			this.cmd = nil
-			return
-		}
-
-		//管道关联命令标准错误输出失败
-		strErr, err := this.cmd.StderrPipe()
-		if err != nil {
-			logger.ErrorF("子进程管道关联命令标准错误输出失败: %s\n", err)
-			this.cmd = nil
-			return
-		}
-
-		//启动命令
-		if err := this.cmd.Start(); err != nil {
-			logger.ErrorF("进程 %d 启动子进程失败: %s\n", os.Getpid(), err)
-			this.cmd = nil
-			return
-		}
-
-		logger.InfoF("进程 %d 启动子进程 %d: %s\n", os.Getpid(), this.cmd.Process.Pid, this.Info.Cmd+" "+strings.Join(this.Info.Args, " "))
-
-		//标准输出与标准错误输出管道go程结束控制器
-		var pipeWaitGroup *sync.WaitGroup = &sync.WaitGroup{}
-		//标准输出与标准错误输出管道go程结束时发出的信号，用于判断是否正常退出
-		var pipeQuitCH chan bool = make(chan bool, 2)
-		//标准输出与标准错误输出管道都结束的信号
-		var pipeQuitCHExit chan struct{} = make(chan struct{})
-
-		//读取命令标准输出管道
-		pipeWaitGroup.Add(1)
-		go func() {
-			isError := false
-			defer func() {
-				pipeQuitCH <- isError
-				pipeWaitGroup.Done()
-			}()
-			if _, err := io.Copy(os.Stdout, stdOut); err != nil {
-				if err != io.EOF {
-					logger.ErrorF("读取子进程命令标准输出管道失败: %s\n", err)
-					isError = true
+			case isError, _ := <-pipeQuitCH:
+				//标准输出或标准错误输出管道go程有异常结束，发送停止子进程信号
+				if isError && !isSendSignal {
+					logger.Info("管道异常，发出停止子进程信号")
+					isSendSignal = true
+					//发送到插队的队列里面
+					this.jump <- SIGNAL_STOP
+					//发出取消阻塞信号
+					this.signal <- SIGNAL_CANCEL_OBSTRUCT
 				}
 			}
-		}()
+		}
+	}()
 
-		//读取命令标准错误输出管道
-		pipeWaitGroup.Add(1)
-		go func() {
-			isError := false
-			defer func() {
-				pipeQuitCH <- isError
-				pipeWaitGroup.Done()
-			}()
-			if _, err := io.Copy(os.Stderr, strErr); err != nil {
-				if err != io.EOF {
-					logger.ErrorF("读取子进程命令标准错误输出管道失败: %s\n", err)
-					isError = true
-				}
-			}
-		}()
-
-		//等待标准输出与标准错误输出管道go程结束
-		go func() {
-			pipeWaitGroup.Wait()
-			//发出等待标准输出与标准错误输出管道go程结束信号
-			close(pipeQuitCHExit)
-		}()
-
-		//监视标准输出与标准错误输出管道go程结束时发出的信号
-		go func() {
-			defer func() {
-				close(pipeQuitCH)
-			}()
-			//停止子进程信号发送锁
-			isSendSignal := false
-			for {
-				select {
-				case <-pipeQuitCHExit:
-					//标准输出与标准错误输出管道go程都结束了，结束当前go程
-					return
-				case isError, _ := <-pipeQuitCH:
-					//标准输出或标准错误输出管道go程有异常结束，发送停止子进程信号
-					if isError && !isSendSignal {
-						logger.Info("管道异常，发出停止子进程信号")
-						isSendSignal = true
-						//发送到插队的队列里面
-						this.jump <- SIGNAL_STOP
-						//发出取消阻塞信号
-						this.signal <- SIGNAL_CANCEL_OBSTRUCT
-					}
-				}
-			}
-		}()
-
+	go func() {
 		//等待子进程结束
 		if err := this.cmd.Wait(); err != nil {
-			logger.ErrorF("子进程 %d 停止异常: %s\n", this.cmd.Process.Pid, err)
+			if this.cmd == nil || this.cmd.Process == nil {
+				logger.ErrorF("子进程停止异常: %s\n", err)
+			}else {
+				logger.ErrorF("子进程 %d 停止异常: %s\n", this.cmd.Process.Pid, err)
+			}
 		} else {
 			logger.InfoF("子进程 %d 停止正常\n", this.cmd.Process.Pid)
 		}

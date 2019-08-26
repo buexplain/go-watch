@@ -41,6 +41,7 @@ func init() {
 				AutoRestart:   info.AutoRestart,
 				PreCmd:        info.PreCmd,
 				PreCmdTimeout: info.PreCmdTimeout,
+				PreCmdIgnoreError:info.PreCmdIgnoreError,
 			}
 			eInfo.Args = make([]string, len(info.Args))
 			copy(eInfo.Args, info.Args)
@@ -81,13 +82,13 @@ func init() {
 
 			//启动监视器
 			eventCH, errorCH, closedCH := m.Run()
-			isSend := false
+			send := false
 			for {
 				select {
 				case _ = <-eventCH:
 					logger.InfoF("进程 %d 监视到文件变化\n", os.Getpid())
-					if !isSend {
-						isSend = true
+					if !send {
+						send = true
 					}
 				case err := <-errorCH:
 					logger.ErrorF("监视器异常: %s\n", err)
@@ -96,11 +97,11 @@ func init() {
 					<-e.Kill()
 					os.Exit(0)
 				case <-time.After(time.Duration(info.Delay) * time.Second):
-					if isSend {
+					if send {
 						logger.InfoF("进程 %d 重启子进程\n", os.Getpid())
 						e.Stop()
 						e.Start()
-						isSend = false
+						send = false
 					}
 				}
 			}
@@ -118,6 +119,7 @@ func init() {
 	Run.Flags().BoolVar(&info.AutoRestart, "autoRestart", info.AutoRestart, "是否自动重启子进程，子进程非守护类型不建议自动重启")
 	Run.Flags().StringVar(&info.PreCmd, "preCmd", info.PreCmd, "预处理命令，启动命令执行前执行的命令")
 	Run.Flags().IntVar(&info.PreCmdTimeout, "preCmdTimeout", info.PreCmdTimeout, "预处理命令执行超时秒数")
+	Run.Flags().BoolVar(&info.PreCmdIgnoreError, "preCmdIgnoreError", info.PreCmdIgnoreError, "是否忽略预处理命令的错误")
 	Run.Flags().StringVar(&info.Pattern, "pattern", info.Pattern, "监视文件变化的方式 poll 或 notify")
 	Run.Flags()
 

@@ -13,6 +13,7 @@ type Info struct {
 	AutoRestart   bool
 	PreCmd        string
 	PreCmdTimeout int
+	PreCmdIgnoreError bool
 }
 
 func NewInfo() Info {
